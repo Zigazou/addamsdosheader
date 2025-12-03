@@ -67,12 +67,15 @@ amsdos_file * load_file(char *file_path) {
     FILE *file;
     amsdos_file *content;
 
+    /* Try opening the file first; return NULL if it fails */
+    file = fopen(file_path, "rb");
+    if(file == NULL) return NULL;
+
     content = malloc(sizeof(amsdos_file));
 
     content->filepath = strdup(file_path);
     content->filename = strdup(basename(file_path));
 
-    file = fopen(file_path, "rb");
     fseek(file, 0, SEEK_END);
     content->size = ftell(file);
     fseek(file, 0, SEEK_SET);
@@ -112,7 +115,7 @@ bool has_amsdos_header(const amsdos_file *file) {
     amsdos_header *header;
     uint16_t checksum;
 
-    if(file->size <= sizeof(amsdos_header)) return false;
+    if(file->size <= (long)sizeof(amsdos_header)) return false;
 
     header = (amsdos_header *)(file->content);
     checksum = compute_checksum(header);
@@ -190,6 +193,11 @@ int main(int argc, char **argv) {
 
     /* Analyze arguments */
     file = load_file(argv[ARG_FILE_PATH]);
+    if(file == NULL) {
+        printf("Error: cannot open file '%s'\n", argv[ARG_FILE_PATH]);
+        return 1;
+    }
+
     file_type = string2filetype(argv[ARG_FILE_TYPE]);    
     start = string2word(argv[ARG_FILE_START]);
     entry = string2word(argv[ARG_FILE_ENTRY]);

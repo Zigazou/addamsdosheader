@@ -6,10 +6,13 @@ Prepare a Basic or binary file to be written on an AMSDOS formatted floppy disk.
 If AMSDOS does not find the appropriate header, the file is considered to be
 ASCII Basic.
 
+If the file cannot be found, it prints an error message and exits with a return
+code of 1.
+
 Compile
 -------
 
-    gcc -O2 addamsdosheader.c -o addamsdosheader
+    gcc -O2 -Wall -Wextra addamsdosheader.c -o addamsdosheader
 
 Warning
 -------
@@ -30,4 +33,3 @@ Notes:
 - **entry-point**: the address of the entry point, for binary files which can
   be run directly without requiring a Basic loader program. 0000 for Basic
   programs.
-
