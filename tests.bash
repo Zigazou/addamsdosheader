@@ -182,6 +182,16 @@ test_reject_existing_header() {
     else
         pass "Correctly rejected file with existing AMSDOS header"
     fi
+
+    cp "$PAYLOAD_PATH" "$TMPDIR/test3.bin"
+    ./addamsdosheader "$TMPDIR/test3.bin" basic
+
+    if ./addamsdosheader "$TMPDIR/test3.bin" basic 2>/dev/null
+    then
+        fail "Should have rejected file with existing header"
+    else
+        pass "Correctly rejected file with existing AMSDOS header"
+    fi
 }
 
 # @brief Test that -f replaces an existing header without growing the file.
@@ -204,14 +214,32 @@ test_force_replace_header() {
             "$EXPECTED_SIZE" \
             "$result_size"
     fi
+
+    cp "$PAYLOAD_PATH" "$TMPDIR/test4.bin"
+    ./addamsdosheader "$TMPDIR/test4.bin" basic
+    ./addamsdosheader -f "$TMPDIR/test4.bin" basic
+    result_size=$(get_file_size "$TMPDIR/test4.bin")
+    if [[ "$result_size" -eq "$EXPECTED_SIZE" ]]; then
+        pass "Size unchanged after forced header replacement (%d)" \
+            "$result_size"
+    else
+        fail "Expected size %d after force, got %d" \
+            "$EXPECTED_SIZE" \
+            "$result_size"
+    fi
+
 }
 
 # @brief Test that the payload is unchanged after a forced header replacement.
 # @global PAYLOAD_PATH  Path to the reference payload.
 # @global PAYLOAD_MD5   MD5 of the original payload for comparison.
 test_payload_intact_after_force() {
+    local recovered_md5
+
     title 5 "Payload intact after forced header replacement"
+
     cp "$PAYLOAD_PATH" "$TMPDIR/test5.bin"
+
     ./addamsdosheader "$TMPDIR/test5.bin" binary C000 C000
     ./addamsdosheader -f "$TMPDIR/test5.bin" binary A000 A000
     dd \
@@ -221,7 +249,26 @@ test_payload_intact_after_force() {
         of="$TMPDIR/recovered5.bin" \
         2>/dev/null
 
-    local recovered_md5
+    recovered_md5=$(get_file_md5 "$TMPDIR/recovered5.bin")
+    if [[ "$recovered_md5" == "$PAYLOAD_MD5" ]]; then
+        pass "Payload still matches original after -f replacement"
+    else
+        fail "Payload differs after -f (expected %s, got %s)" \
+            "$PAYLOAD_MD5" \
+            "$recovered_md5"
+    fi
+
+    cp "$PAYLOAD_PATH" "$TMPDIR/test5.bin"
+
+    ./addamsdosheader "$TMPDIR/test5.bin" basic
+    ./addamsdosheader -f "$TMPDIR/test5.bin" basic
+    dd \
+        if="$TMPDIR/test5.bin" \
+        bs=1 \
+        skip=128 \
+        of="$TMPDIR/recovered5.bin" \
+        2>/dev/null
+
     recovered_md5=$(get_file_md5 "$TMPDIR/recovered5.bin")
     if [[ "$recovered_md5" == "$PAYLOAD_MD5" ]]; then
         pass "Payload still matches original after -f replacement"
@@ -232,16 +279,37 @@ test_payload_intact_after_force() {
     fi
 }
 
-# @brief Test that invoking the program with too few arguments results in an
-# error.
+# @brief Test that invoking the program with an incorrect number of arguments
+# results in an error for each combination of file type and force option.
 function test_invalid_arguments_count() {
     title 6 "Invalid argument count is rejected"
 
+    if ./addamsdosheader "$TMPDIR/test6.bin" basic C000 C000 2>/dev/null >/dev/null
+    then
+        fail "Should have rejected basic with extra arguments"
+    else
+        pass "Correctly rejected basic with extra arguments"
+    fi
+
+    if ./addamsdosheader -f "$TMPDIR/test6.bin" basic C000 C000 2>/dev/null >/dev/null
+    then
+        fail "Should have rejected basic -f with extra arguments"
+    else
+        pass "Correctly rejected basic -f with extra arguments"
+    fi
+
     if ./addamsdosheader "$TMPDIR/test6.bin" binary C000 2>/dev/null >/dev/null
     then
-        fail "Should have rejected incorrect argument count"
+        fail "Should have rejected binary with missing argument"
     else
-        pass "Correctly rejected incorrect argument count"
+        pass "Correctly rejected binary with missing argument"
+    fi
+
+    if ./addamsdosheader -f "$TMPDIR/test6.bin" binary C000 2>/dev/null >/dev/null
+    then
+        fail "Should have rejected binary -f with missing argument"
+    else
+        pass "Correctly rejected binary -f with missing argument"
     fi
 }
 

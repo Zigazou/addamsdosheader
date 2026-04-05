@@ -12,7 +12,12 @@ code of 1.
 Compile
 -------
 
-    gcc -O2 -Wall -Wextra addamsdosheader.c -o addamsdosheader
+    make
+
+Running tests
+-------------
+
+    make tests
 
 Warning
 -------
@@ -22,10 +27,13 @@ Warning
 Usage
 -----
 
-    addamsdosheader <file> <type> <load-address> <entry-point>
+    addamsdosheader [-f] <file> binary <load-address> <entry-point>
+    addamsdosheader [-f] <file> basic
 
 Notes:
 
+- **-f**: force rewriting of AMSDOS header (it fails if an AMSDOS header already
+  exists)
 - **file**: the path to the file to be modified
 - **type**: basic or binary
 - **load-address**: the address at which the file must be loaded in memory (it

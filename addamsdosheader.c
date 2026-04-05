@@ -55,7 +55,11 @@ format. */
 #define ARG_FILE_TYPE 2
 #define ARG_FILE_START 3
 #define ARG_FILE_ENTRY 4
-#define ARG_NUMBER 5
+#define ARG_NUMBER_BINARY 5
+#define ARG_NUMBER_BASIC 3
+
+#define BASIC_START 0x0170
+#define BASIC_ENTRY 0x0000
 
 /**
  * @brief AMSDOS filename record.
@@ -235,11 +239,14 @@ void strip_amsdos_header(amsdos_file *file) {
  * @brief Print command-line usage information to stdout.
  */
 void print_usage() {
-    printf("Usage: addamsdosheader [-f] <filename> <type> <start> <entry>\n");
+    printf("Usage: addamsdosheader [-f] <filename> binary <start> <entry>\n");
     printf("- -f: force replacement of an existing AMSDOS header\n");
     printf("- type: basic or binary\n");
     printf("- start: hexadecimal address at which the file will be loaded\n");
     printf("- entry: hexadecimal address of the entry point (binary)\n");
+
+    printf("\nUsage: addamsdosheader [-f] <filename> basic\n");
+    printf("- -f: force replacement of an existing AMSDOS header\n");
 }
 
 /**
@@ -325,8 +332,11 @@ void write_file(const amsdos_file *amsfile) {
  * does not already contain an AMSDOS header (unless @c -f is given),
  * builds one, and writes the result back to disk.
  *
- * @param argc Argument count (expected: 5, or 6 with -f).
- * @param argv Argument vector: program, [-f], filepath, type, start, entry.
+ * For Basic files, start and entry addresses are not required and are
+ * forced to 0x0170 and 0x0000 respectively.
+ *
+ * @param argc Argument count (3 or 5, plus 1 with -f).
+ * @param argv Argument vector: program, [-f], filepath, type, [start, entry].
  * @return 0 on success, non-zero error code on failure.
  */
 int main(int argc, char **argv) {
@@ -343,11 +353,31 @@ int main(int argc, char **argv) {
         arg_base = 1;
     }
 
-    /* Check argument number */
-    if(argc != ARG_NUMBER + arg_base) {
+    /* Determine file type early to know expected argument count */
+    if(argc < ARG_NUMBER_BASIC + arg_base) {
         fprintf(stderr, "Incorrect number of arguments\n");
         print_usage();
         return ERROR_INCORRECT_ARG_NUMBER;
+    }
+
+    file_type = string2filetype(argv[ARG_FILE_TYPE + arg_base]);
+
+    if(file_type == FILE_TYPE_BASIC) {
+        if(argc != ARG_NUMBER_BASIC + arg_base) {
+            fprintf(stderr, "Incorrect number of arguments\n");
+            print_usage();
+            return ERROR_INCORRECT_ARG_NUMBER;
+        }
+        start = BASIC_START;
+        entry = BASIC_ENTRY;
+    } else {
+        if(argc != ARG_NUMBER_BINARY + arg_base) {
+            fprintf(stderr, "Incorrect number of arguments\n");
+            print_usage();
+            return ERROR_INCORRECT_ARG_NUMBER;
+        }
+        start = string2word(argv[ARG_FILE_START + arg_base]);
+        entry = string2word(argv[ARG_FILE_ENTRY + arg_base]);
     }
 
     /* Analyze arguments */
@@ -360,10 +390,6 @@ int main(int argc, char **argv) {
         );
         return 1;
     }
-
-    file_type = string2filetype(argv[ARG_FILE_TYPE + arg_base]);    
-    start = string2word(argv[ARG_FILE_START + arg_base]);
-    entry = string2word(argv[ARG_FILE_ENTRY + arg_base]);
 
     /* Check for AMSDOS header presence */
     if(has_amsdos_header(file)) {
