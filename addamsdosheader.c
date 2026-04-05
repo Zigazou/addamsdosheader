@@ -3,10 +3,10 @@
  * @brief Prepend an AMSDOS header to a Basic or binary file.
  *
  * This utility prepares a file so it can be written on an AMSDOS-formatted
- * floppy disk. Without a valid AMSDOS header, the Amstrad CPC firmware treats
- * a file as ASCII Basic. The program reads an existing file, builds the
- * appropriate 128-byte AMSDOS header, and overwrites the original file with
- * the header followed by the original content.
+ * floppy disk. Without a valid AMSDOS header, the Amstrad CPC firmware treats a
+ * file as ASCII Basic. The program reads an existing file, builds the
+ * appropriate 128-byte AMSDOS header, and overwrites the original file with the
+ * header followed by the original content.
  *
  * @warning This program overwrites the source file.
  *
@@ -60,21 +60,21 @@ format. */
 /**
  * @brief AMSDOS filename record.
  *
- * Stores the user number, 8-character name, 3-character extension, and
- * padding as found in the AMSDOS directory entry.
+ * Stores the user number, 8-character name, 3-character extension, and padding
+ * as found in the AMSDOS directory entry.
  */
 typedef struct PACKED {
-    uint8_t user_number;       /**< CP/M user number (usually 0). */
-    char name[8];              /**< Filename, padded with spaces. */
-    char extension[3];         /**< Extension, padded with spaces. */
-    uint8_t _filename_padding[4]; /**< Reserved padding bytes. */
+    uint8_t user_number;           /**< CP/M user number (usually 0). */
+    char name[8];                  /**< Filename, padded with spaces. */
+    char extension[3];             /**< Extension, padded with spaces. */
+    uint8_t _filename_padding[4];  /**< Reserved padding bytes. */
 } filename;
 
 /**
  * @brief Media-level header portion of the AMSDOS header.
  *
- * Contains file metadata such as the type, load address, entry point,
- * and logical length, along with block bookkeeping fields.
+ * Contains file metadata such as the type, load address, entry point, and
+ * logical length, along with block bookkeeping fields.
  */
 typedef struct PACKED {
     filename file;             /**< Filename record. */
@@ -92,13 +92,13 @@ typedef struct PACKED {
 /**
  * @brief Complete 128-byte AMSDOS header.
  *
- * Wraps the media header and appends a 3-byte file length, a 16-bit
- * checksum, and padding to fill the 128-byte sector.
+ * Wraps the media header and appends a 3-byte file length, a 16-bit checksum,
+ * and padding to fill the 128-byte sector.
  */
 typedef struct PACKED {
-    media_header fields;       /**< Media header fields. */
-    uint8_t file_length[3];    /**< 24-bit file length (little-endian). */
-    uint16_t checksum;         /**< Sum of the first 67 bytes. */
+    media_header fields;    /**< Media header fields. */
+    uint8_t file_length[3]; /**< 24-bit file length (little-endian). */
+    uint16_t checksum;      /**< Sum of the first 67 bytes. */
     uint8_t _amsdos_header_padding[59]; /**< Padding to 128 bytes. */
 } amsdos_header;
 
@@ -106,11 +106,11 @@ typedef struct PACKED {
  * @brief In-memory representation of a file with its AMSDOS header.
  */
 typedef struct {
-    char * filepath;           /**< Full path to the file on disk. */
-    char * filename;           /**< Base name extracted from the path. */
-    long size;                 /**< Size of the original file content in bytes. */
-    amsdos_header header;      /**< AMSDOS header to prepend. */
-    uint8_t *content;          /**< Raw file content. */
+    char * filepath;        /**< Full path to the file on disk. */
+    char * filename;        /**< Base name extracted from the path. */
+    long size;              /**< Size of the original file content in bytes. */
+    amsdos_header header;   /**< AMSDOS header to prepend. */
+    uint8_t *content;       /**< Raw file content. */
 } amsdos_file;
 
 /**
@@ -149,8 +149,8 @@ amsdos_file * load_file(char *file_path) {
 /**
  * @brief Convert a type string to an AMSDOS file-type constant.
  *
- * Recognises "basic" (case-insensitive prefix "ba") and treats
- * everything else as binary.
+ * Recognises "basic" (case-insensitive prefix "ba") and treats everything else
+ * as binary.
  *
  * @param string User-supplied type string (e.g. "basic" or "binary").
  * @return FILE_TYPE_BASIC (0) or FILE_TYPE_BINARY (2).
@@ -178,8 +178,8 @@ uint16_t string2word(const char *string) {
 /**
  * @brief Compute the AMSDOS header checksum.
  *
- * The checksum is the arithmetic sum of the first 67 bytes of the
- * header, stored as a 16-bit value.
+ * The checksum is the arithmetic sum of the first 67 bytes of the header,
+ * stored as a 16-bit value.
  *
  * @param header Pointer to the AMSDOS header.
  * @return Computed checksum value.
@@ -199,8 +199,8 @@ uint16_t compute_checksum(const amsdos_header *header) {
 /**
  * @brief Test whether a file already contains a valid AMSDOS header.
  *
- * A valid header is detected when the file is larger than 128 bytes and
- * the checksum of the first 67 bytes matches the stored checksum field.
+ * A valid header is detected when the file is larger than 128 bytes and the
+ * checksum of the first 67 bytes matches the stored checksum field.
  *
  * @param file Pointer to the loaded amsdos_file.
  * @return true if a valid AMSDOS header is present, false otherwise.
@@ -218,10 +218,25 @@ bool has_amsdos_header(const amsdos_file *file) {
 }
 
 /**
+ * @brief Strip an existing AMSDOS header from a loaded file.
+ *
+ * Removes the first 128 bytes (the AMSDOS header) from the file content by
+ * shifting the remaining data to the beginning of the buffer and reducing the
+ * recorded size.
+ *
+ * @param file Pointer to the amsdos_file to strip.
+ */
+void strip_amsdos_header(amsdos_file *file) {
+    file->size -= sizeof(amsdos_header);
+    memmove(file->content, file->content + sizeof(amsdos_header), file->size);
+}
+
+/**
  * @brief Print command-line usage information to stdout.
  */
 void print_usage() {
-    printf("Usage: addamsdosheader <filename> <type> <start> <entry>\n");
+    printf("Usage: addamsdosheader [-f] <filename> <type> <start> <entry>\n");
+    printf("- -f: force replacement of an existing AMSDOS header\n");
     printf("- type: basic or binary\n");
     printf("- start: hexadecimal address at which the file will be loaded\n");
     printf("- entry: hexadecimal address of the entry point (binary)\n");
@@ -307,11 +322,11 @@ void write_file(const amsdos_file *amsfile) {
  * @brief Program entry point.
  *
  * Parses command-line arguments, loads the target file, verifies that it
- * does not already contain an AMSDOS header, builds one, and writes the
- * result back to disk.
+ * does not already contain an AMSDOS header (unless @c -f is given),
+ * builds one, and writes the result back to disk.
  *
- * @param argc Argument count (expected: 5).
- * @param argv Argument vector: program, filepath, type, start, entry.
+ * @param argc Argument count (expected: 5, or 6 with -f).
+ * @param argv Argument vector: program, [-f], filepath, type, start, entry.
  * @return 0 on success, non-zero error code on failure.
  */
 int main(int argc, char **argv) {
@@ -319,29 +334,47 @@ int main(int argc, char **argv) {
     uint8_t file_type;
     uint16_t start;
     uint16_t entry;
+    bool force = false;
+    int arg_base = 0;
 
-    /* Check argument bumber */
-    if(argc != ARG_NUMBER) {
-        printf("Incorrect number of arguments\n");
+    /* Check for the -f (force) option */
+    if(argc >= 2 && strcmp(argv[1], "-f") == 0) {
+        force = true;
+        arg_base = 1;
+    }
+
+    /* Check argument number */
+    if(argc != ARG_NUMBER + arg_base) {
+        fprintf(stderr, "Incorrect number of arguments\n");
         print_usage();
         return ERROR_INCORRECT_ARG_NUMBER;
     }
 
     /* Analyze arguments */
-    file = load_file(argv[ARG_FILE_PATH]);
+    file = load_file(argv[ARG_FILE_PATH + arg_base]);
     if(file == NULL) {
-        printf("Error: cannot open file '%s'\n", argv[ARG_FILE_PATH]);
+        fprintf(
+            stderr,
+            "Error: cannot open file '%s'\n",
+            argv[ARG_FILE_PATH + arg_base]
+        );
         return 1;
     }
 
-    file_type = string2filetype(argv[ARG_FILE_TYPE]);    
-    start = string2word(argv[ARG_FILE_START]);
-    entry = string2word(argv[ARG_FILE_ENTRY]);
+    file_type = string2filetype(argv[ARG_FILE_TYPE + arg_base]);    
+    start = string2word(argv[ARG_FILE_START + arg_base]);
+    entry = string2word(argv[ARG_FILE_ENTRY + arg_base]);
 
     /* Check for AMSDOS header presence */
     if(has_amsdos_header(file)) {
-        printf("File already has AMSDOS header\n");
-        return ERROR_AMSDOS_HEADER_PRESENT;
+        if(!force) {
+            fprintf(
+                stderr,
+                "File already has AMSDOS header (use -f to replace)\n"
+            );
+            return ERROR_AMSDOS_HEADER_PRESENT;
+        }
+        strip_amsdos_header(file);
     }
 
     /* Initialize the header */
